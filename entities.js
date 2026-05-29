@@ -138,6 +138,7 @@ function findMineralPatchCells(gx, gy, maxRadius = 4) {
 }
 
 // 负载感知分配：将工人均匀分配到矿区各矿格
+// 返回 { assignedCount, uniqueCells } 表示分配了多少工人到多少个不同矿格
 function distributeWorkersToMinerals(workers, mineralCells) {
   const load = new Map();
   for (const cell of mineralCells) {
@@ -157,6 +158,8 @@ function distributeWorkersToMinerals(workers, mineralCells) {
   }
 
   // 贪心分配：每个工人选择当前负载最低的矿格，负载相同选距离最近的
+  const usedCells = new Set();
+  let assignedCount = 0;
   for (const worker of workers) {
     let bestCell = null;
     let bestLoad = Infinity;
@@ -182,8 +185,11 @@ function distributeWorkersToMinerals(workers, mineralCells) {
 
       const key = `${bestCell.gx},${bestCell.gy}`;
       load.set(key, load.get(key) + 1);
+      usedCells.add(key);
+      assignedCount++;
     }
   }
+  return { assignedCount, uniqueCells: usedCells.size };
 }
 
 function findNearestMineral(fromX, fromY) {
