@@ -249,8 +249,8 @@ body {
   </div>
 </div>
 
-<script src="map.js"></script>
-<script src="entities.js"></script>
+<script src="map.js?v=2"></script>
+<script src="entities.js?v=2"></script>
 <script>
 // ============================================================
 //  FuRTS - 系统界面 / 渲染 / 输入 / 游戏循环
@@ -972,6 +972,27 @@ function render() {
     }
   }
 
+  // 选中工人的采矿目标指示线
+  for (const id of game.selected) {
+    const e = entities.find(en => en.id === id);
+    if (!e || e.kind !== 'unit' || e.state !== 'gather' || !e.gatherTarget) continue;
+    const sx = e.x - camera.x;
+    const sy = e.y - camera.y;
+    const tx = e.gatherTarget.gx * CELL + CELL / 2 - camera.x;
+    const ty = e.gatherTarget.gy * CELL + CELL / 2 - camera.y;
+
+    ctx.strokeStyle = 'rgba(0,170,255,0.5)';
+    ctx.setLineDash([4, 3]);
+    ctx.beginPath();
+    ctx.moveTo(sx, sy);
+    ctx.lineTo(tx, ty);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    ctx.fillStyle = 'rgba(0,170,255,0.6)';
+    ctx.fillRect(tx - CELL / 2, ty - CELL / 2, CELL, CELL);
+  }
+
   // 选中建筑高亮 + 集结点标记
   for (const id of game.selected) {
     const e = entities.find(en => en.id === id);
@@ -1599,11 +1620,20 @@ function issueCommand(mx, my) {
     const workers = selectedUnits.filter(u => u.type === 'worker');
     if (workers.length > 0) {
       const mineralCells = findMineralPatchCells(gx, gy);
-      if (mineralCells.length > 0) {
-        distributeWorkersToMinerals(workers, mineralCells);
+      if (mineralCells.length > 1 && workers.length > 1) {
+        const info = distributeWorkersToMinerals(workers, mineralCells);
+        addLog(`⛏️ ${info.assignedCount} 工人分散到 ${info.uniqueCells} 个矿格采矿`);
+      } else {
+        // 单个工人或单个矿格：直接分配到点击的矿格
+        for (const w of workers) {
+          w.state = 'gather';
+          w.gatherTarget = { gx, gy };
+          w.gatherTimer = 0;
+          setUnitPath(w, gx, gy);
+        }
+        addLog('⛏️ 前往采矿');
       }
     }
-    addLog('⛏️ 前往采矿');
     return;
   }
 
